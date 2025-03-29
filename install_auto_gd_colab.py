@@ -2,9 +2,7 @@ import os
 import sys
 import platform
 import subprocess
-import pkg_resources
 
-from google.colab import drive
 from rich.console import Console
 from rich.panel import Panel
 
@@ -19,19 +17,7 @@ def check_and_install_library(library_name, google_drive_path, url=None):
         library_name (str): 需要安装的库名
         google_drive_path (str): Google Drive 存储路径
     """
-    # 连接 Google Drive
-    drive.mount('/content/drive', force_remount=True)
     
-    # 确保存储路径存在
-    os.makedirs(google_drive_path, exist_ok=True)
-    
-    try:
-        # 尝试获取库的分发信息，检查是否已安装
-        pkg_resources.get_distribution(library_name)
-        console.print(Panel(f"✅ {library_name} 已经安装", style="green"))
-        return
-    except pkg_resources.DistributionNotFound:
-        console.print(Panel(f"🔍 准备安装 {library_name}", style="yellow"))
     
     # 构建 whl 文件路径
     whl_filename = f"{library_name}.whl"
@@ -148,7 +134,7 @@ def main():
     主函数，管理库的安装
     """
     # Google Drive 中存储安装包的路径
-    libraries_path = "/content/drive/MyDrive/python_libraries"
+    libraries_path = "/content/drive/MyDrive/Colab_dependencies"
     
     # 需要安装的库列表
     libraries_to_install = [
