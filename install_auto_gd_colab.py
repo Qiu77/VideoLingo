@@ -3,11 +3,18 @@ import sys
 import platform
 import subprocess
 
-from rich.console import Console
-from rich.panel import Panel
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# 配置 Rich 控制台用于美化输出
-console = Console()
+ascii_logo = """
+__     ___     _            _     _                    
+\ \   / (_) __| | ___  ___ | |   (_)_ __   __ _  ___  
+ \ \ / /| |/ _` |/ _ \/ _ \| |   | | '_ \ / _` |/ _ \ 
+  \ V / | | (_| |  __/ (_) | |___| | | | | (_| | (_) |
+   \_/  |_|\__,_|\___|\___/|_____|_|_| |_|\__, |\___/ 
+                                          |___/        
+"""
+
+
 
 def check_and_install_library(library_name, google_drive_path, url=None):
     """
@@ -129,6 +136,35 @@ def detect_gpu_and_install_torch():
     finally:
         pynvml.nvmlShutdown()
 
+def check_ffmpeg():
+    from rich.console import Console
+    from rich.panel import Panel
+    from translations.translations import translate as t
+    console = Console()
+
+    try:
+        # Check if ffmpeg is installed
+        subprocess.run(['ffmpeg', '-version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        console.print(Panel(t("✅ FFmpeg is already installed"), style="green"))
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        system = platform.system()
+        install_cmd = ""
+        
+        if system == "Linux":
+            install_cmd = "sudo apt install ffmpeg  # Ubuntu/Debian\nsudo yum install ffmpeg  # CentOS/RHEL"
+            extra_note = t("Use your distribution's package manager")
+        
+        console.print(Panel.fit(
+            t("❌ FFmpeg not found\n\n") +
+            f"{t('🛠️ Install using:')}\n[bold cyan]{install_cmd}[/bold cyan]\n\n" +
+            f"{t('💡 Note:')}\n{extra_note}\n\n" +
+            f"{t('🔄 After installing FFmpeg, please run this installer again:')}\n[bold cyan]python install.py[/bold cyan]",
+            style="red"
+        ))
+        raise SystemExit(t("FFmpeg is required. Please install it and run the installer again."))
+
+
 def main():
     """
     主函数，管理库的安装
@@ -153,6 +189,40 @@ def main():
     for library in libraries_to_install:
         check_and_install_library(library, libraries_path)
     
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.box import DOUBLE
+    from translations.translations import translate as t
+    from translations.translations import DISPLAY_LANGUAGES
+    from core.config_utils import load_key, update_key
+
+    console = Console()
+
+    width = max(len(line) for line in ascii_logo.splitlines()) + 4
+    welcome_panel = Panel(
+        ascii_logo,
+        width=width,
+        box=DOUBLE,
+        title="[bold green]🌏[/bold green]",
+        border_style="bright_blue"
+    )
+    console.print(welcome_panel)
+
+    # 自动设置语言为简体中文，而不是使用交互式选择
+    selected_language = "zh-CN"  # 简体中文的语言代码
+    update_key("display_language", selected_language)
+    console.print(Panel.fit(t("已自动设置语言为简体中文"), style="bold magenta"))
+
+    console.print(Panel.fit(t("🚀 Starting Installation"), style="bold magenta"))
+
+    # 自动跳过设置PyPI镜像
+    configure_mirrors = False
+    if configure_mirrors:
+        from core.pypi_autochoose import main as choose_mirror
+        choose_mirror()
+    else:
+        console.print(Panel.fit(t("已自动跳过PyPI镜像配置"), style="cyan"))
+
     # 检测并安装 PyTorch
     detect_gpu_and_install_torch()
 
@@ -200,6 +270,8 @@ def main():
         except subprocess.CalledProcessError as e:
             console.print(Panel(t("❌ Failed to install requirements:") + str(e), style="red"))
 
+    install_requirements()
+    check_ffmpeg()
     
     console.print(Panel("✅ 所有依赖库安装完成", style="bold green"))
 
